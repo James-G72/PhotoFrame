@@ -9,7 +9,7 @@ def test(event):
 # Initialising the window
 Window = tk.Tk() # Root window is created
 Window.title("PhotoFrame") # Title added
-folder = "/Users/jamesgower2/Pictures/Honor10"
+folder = "/Volumes/Photos"
 frame_object = frame.PhantomFrame(Window,target_folder=folder,timer=5,shuffle=True) # Initialising the frame area within the root window
 frame_object.pack(side="top", fill="both", expand="true", padx=0, pady=0) # Packing and displaying (in TkInter everything to be displayed in a window needs to be either "packed" or "placed"
 Window.resizable(width=False, height=False) # This locks the size of the window so it cant be resized

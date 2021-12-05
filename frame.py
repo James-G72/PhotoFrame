@@ -13,13 +13,11 @@ class PhantomFrame(tk.Frame):
 
     def __init__(self, parent, target_folder="",timer=5,shuffle=True):
         '''
-        The GameBoard object hosts the whole game. Upon iitialisation the Sudoku squares are created and pieces drawn.
+        The PhantomFrame object the slideshow code.
         :param parent: The tk root window inside of which you want the board to be drawn
-        :param side_size: Dictates the width of the side panel with the game controls
-        :param square_size: The size of the chess board in pixels
-        :param rows: Rows in the chess board (default = 8)
-        :param columns: Columns in the chess board (defailt = 8)
-        :param color: This defines the background board colour
+        :param target_folder: The folder to pull photos from
+        :param timer: The duration between photos
+        :param shuffle: A bool as to whether or not to play photos in order
         '''
         # There is no need to edit any of the sizes. The default for side_size is 200
         # The default colors here are pure white and a dark gray
@@ -41,13 +39,13 @@ class PhantomFrame(tk.Frame):
         # This a very long section defining a lot of stationary visuals for the GUI
         # Most of the placement is just done by eye to make sure it all looks okay
         imgs = []
-        path = "/Users/jamesgower2/Pictures/Honor10"
         valid_images = [".jpg",".gif",".png",".tga"]
-        for f in os.listdir(path):
-            ext = os.path.splitext(f)[1]
-            if ext.lower() not in valid_images:
-                continue
-            imgs.append(Image.open(os.path.join(path,f)))
+        for f in os.listdir(target_folder):
+            if f[0] != ".":
+                ext = os.path.splitext(f)[1]
+                if ext.lower() not in valid_images:
+                    continue
+                imgs.append(Image.open(os.path.join(target_folder,f)))
         self.list = imgs
         self.image_num = len(self.list)
         if shuffle:
