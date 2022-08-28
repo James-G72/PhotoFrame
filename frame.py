@@ -1,9 +1,10 @@
 import tkinter as tk
 import os
-from PIL import Image, ImageTk
+from PIL import Image, ImageTk, ImageFont, ImageDraw
 import random
 import math
 import time
+import datetime
 
 
 class PhantomFrame(tk.Frame):
@@ -39,19 +40,67 @@ class PhantomFrame(tk.Frame):
         # This a very long section defining a lot of stationary visuals for the GUI
         # Most of the placement is just done by eye to make sure it all looks okay
         imgs = []
+        origin = []
+        date = []
         valid_images = [".jpg",".gif",".png",".tga"]
-        for f in os.listdir(target_folder):
-            if f[0] != ".":
-                ext = os.path.splitext(f)[1]
-                if ext.lower() not in valid_images:
-                    continue
-                imgs.append(Image.open(os.path.join(target_folder,f)))
+        target_folder = "D:\\"
+        folders = next(os.walk(target_folder))[1]
+        if "System Volume Information" in folders:
+            folders.remove("System Volume Information")
+        if len(folders) == 0:
+            unpack_mode = "single_folder"
+        else:
+            unpack_mode = "multiple_folders"
+        # Unpacking images into a list
+
+        if unpack_mode == "single_folder":
+            for f in os.listdir(target_folder):
+                if f[0] != ".":
+                    ext = os.path.splitext(f)[1]
+                    if ext.lower() not in valid_images:
+                        continue
+                    imgs.append(Image.open(os.path.join(target_folder,f)))
+                    origin.append("Main")
+                    try:
+                        date.append(Image.open(target_folder)._getexif()[36867])
+                    except:
+                        date.append("Unknown")
+        else:
+            for f in os.listdir(target_folder):
+                if f[0] != ".":
+                    ext = os.path.splitext(f)[1]
+                    if ext.lower() not in valid_images:
+                        continue
+                    imgs.append(Image.open(os.path.join(target_folder,f)))
+                    origin.append("Main")
+                    try:
+                        date.append(Image.open(os.path.join(target_folder,f))._getexif()[36867])
+                    except:
+                        date.append("Unknown")
+            for x in range(0,len(folders)):
+                for f in os.listdir(target_folder+folders[x]):
+                    if f[0] != ".":
+                        ext = os.path.splitext(f)[1]
+                        if ext.lower() not in valid_images:
+                            continue
+                        imgs.append(Image.open(os.path.join(target_folder+folders[x], f)))
+                        origin.append(folders[x])
+                        try:
+                            date.append(Image.open(os.path.join(target_folder,f)+folders[x])._getexif()[36867])
+                        except:
+                            date.append("Unknown")
         self.list = imgs
+        self.directories = origin
+        self.dates = date
         self.image_num = len(self.list)
         if shuffle:
             random.shuffle(self.list)
         self.timer = timer
         self.pos = 0
+
+        # Imagefont requires the font file to be imported
+        self.folder_font = ImageFont.truetype("theboldfont.ttf", 40)
+        self.date_font = ImageFont.truetype("theboldfont.ttf", 25)
 
         # Creating the canvas for the window
         tk.Frame.__init__(self,parent)
@@ -63,7 +112,13 @@ class PhantomFrame(tk.Frame):
 
     def _run_image(self):
         self.image = self.list[self.pos]
+        self.date = self.dates[self.pos]
+        self.folder = self.directories[self.pos]
         im = self._resized_image()
+        draw = ImageDraw.Draw(im)
+        proper_date = datetime.datetime.strptime(self.date.split(" ")[0], '%Y:%m:%d').strftime("%d-%B %Y")
+        draw.text((0, 0), self.folder, (255, 255, 255), font=self.folder_font)
+        draw.text((0, 45), proper_date, (255, 255, 255), font=self.date_font)
         img = ImageTk.PhotoImage(im)
         self.canvas.delete("image")
         self.canvas.create_image(self.c_width/2,self.c_height/2, image=img, anchor="c", tag="image") # First we create the image in the top left
