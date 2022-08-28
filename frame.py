@@ -43,7 +43,7 @@ class PhantomFrame(tk.Frame):
         origin = []
         date = []
         valid_images = [".jpg",".gif",".png",".tga"]
-        target_folder = "D:\\"
+        # target_folder = "D:\\"
         folders = next(os.walk(target_folder))[1]
         if "System Volume Information" in folders:
             folders.remove("System Volume Information")
