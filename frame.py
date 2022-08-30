@@ -56,7 +56,8 @@ class PhantomFrame(tk.Frame):
         self.image_num = len(self.imgs)
         # Defining a list of positions to shuffle such that we don't have to shuffle the actual lists
         self.pos_list = [x for x in range(0, self.image_num)]
-        if shuffle:
+        self.shuffle = shuffle
+        if self.shuffle:
             random.shuffle(self.pos_list)
         self.timer = timer
         self.pos = 0
@@ -123,31 +124,54 @@ class PhantomFrame(tk.Frame):
         self.image = self.imgs[self.pos_list[self.pos]]
         self.date_1 = self.date[self.pos_list[self.pos]]
         self.folder = self.origin[self.pos_list[self.pos]]
-        self.prev_folder = "Main"
+
+        # The previous folder is shown to know whether or not to show a splash image for that folder
+        self.prev_folder = ""
+        if self.folder == self.prev_folder and not self.shuffle:
+            # Work out a way to display a splash image with the folder name and stats
+        t = 1
+
+        # Calling the resize function to ensure that the image is shown full screen
         self.im = self._resized_image()
+        # Calling the overlay function to add the text over the image
         self.im_overlay = self._overlay()
+        # Setting it as a tkinter image
         img = ImageTk.PhotoImage(self.im_overlay)
+        # Deleting the previous image on the canvas
         self.canvas.delete("image")
+        # Pasting the new image onto the canvas
         self.canvas.create_image(self.c_width/2,self.c_height/2, image=img, anchor="c", tag="image") # First we create the image in the top left
+        # Updating the visuals
         self.update()
+        # Preventing the counter from exceeding the number of images while iterating
         if self.pos >= self.image_num:
             self.pos = 0
         else:
             self.pos += 1
         time.sleep(self.timer)
+        # Setting the previous folder value
         self.prev_folder = self.folder
-        self.after(5000, self._run_image())
+        # Waiting the specified duration of time before running the function again
+        self.after(self.timer*1000, self._run_image())
 
     def _resized_image(self):
+        """
+        Takes an image and fits it to fill the full screen by expending until either the width ot the height is at max
+        :return: The original image re-sized
+        """
+        # Creating a copy of the original image
         self.img_copy = self.image.copy()
+        # Extracting the size data
         image_width, image_height = self.image.size
+        # Pulling the side of the window for comparison
         HEIGHT, WIDTH = self.winfo_screenheight(), self.winfo_screenwidth()
-        print(image_width, image_height, HEIGHT, WIDTH)
-        if image_width > WIDTH:
-            w_f = image_width / WIDTH
-            if image_height > HEIGHT:
+
+        # Running through the heights and widths to work out what needs to be increased by what
+        if image_width > WIDTH: # If the image is wider than the screen we know we need to make it smaller
+            w_f = image_width / WIDTH # Working out the required reduction
+            if image_height > HEIGHT: # Same for the height
                 h_f = image_height / HEIGHT
-                if w_f >= h_f:
+                if w_f >= h_f: # Checking which reduction is larger and setting this as the reduction amount
                     r_w = WIDTH
                     r_h = math.floor(image_height / w_f)
                 else:
@@ -160,7 +184,7 @@ class PhantomFrame(tk.Frame):
             h_f = image_height / HEIGHT
             r_h = HEIGHT
             r_w = image_width / h_f
-        else:
+        else: # Otherwise we just need to know which can be expanded the most
             w_f = image_width / WIDTH
             h_f = image_height / HEIGHT
             if w_f >= h_f:
@@ -170,6 +194,7 @@ class PhantomFrame(tk.Frame):
                 r_h = HEIGHT
                 r_w = math.floor(image_width / h_f)
 
+        # Return the image scaled by the factors calculated above
         return self.img_copy.resize((int(r_w),int(r_h)))
 
     def _overlay(self):
@@ -177,17 +202,26 @@ class PhantomFrame(tk.Frame):
         Overlays text over the top of the image to show the folder name and capture date
         :return: Image with the overlay on top
         """
+        # Take a cropped section of the top left of the image
         im_check = self.im.crop((0, 0, 100, 50))
+        # Count and get all those pixels in a list
         npixels = im_check.size[0] * im_check.size[1]
         cols = im_check.getcolors(npixels)
+        # Get the sum of all the RGB values in the cropped image
         sumRGB = [(x[0] * x[1][0], x[0] * x[1][1], x[0] * x[1][2]) for x in cols]
+        # Find the average value in the cropped image
         avg = tuple([sum(x) / npixels for x in zip(*sumRGB)])
+        # If the average RGB value is less than 300 then set as white, else black
         if sum(avg) < 300:
             font_color = (255, 255, 255)
         else:
             font_color = (0, 0, 0)
+        # Create a draw image
         draw = ImageDraw.Draw(self.im)
+        # Draw over the top for the folder name
         draw.text((1, 1), self.folder, font_color, font=self.folder_font)
+        # Draw over the top for the date
         draw.text((1, 46), self.date_1, font_color, font=self.date_font)
 
+        # Return the image with the overlay on top
         return self.im
