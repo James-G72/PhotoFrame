@@ -129,7 +129,7 @@ class PhantomFrame(tk.Frame):
         self.prev_folder = ""
         if self.folder == self.prev_folder and not self.shuffle:
             # Work out a way to display a splash image with the folder name and stats
-        t = 1
+            t = 1
 
         # Calling the resize function to ensure that the image is shown full screen
         self.im = self._resized_image()
