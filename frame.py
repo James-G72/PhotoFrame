@@ -61,10 +61,12 @@ class PhantomFrame(tk.Frame):
             random.shuffle(self.pos_list)
         self.timer = timer
         self.pos = 0
+        self.prev_folder = ""
 
         # Imagefont requires the font file to be imported
         self.folder_font = ImageFont.truetype("theboldfont.ttf", 40)
         self.date_font = ImageFont.truetype("theboldfont.ttf", 25)
+        self.intro_font = ImageFont.truetype("theboldfont.ttf", 100)
 
         # Creating the canvas for the window
         tk.Frame.__init__(self, parent)
@@ -113,7 +115,7 @@ class PhantomFrame(tk.Frame):
                     # If the above fails then just append a blank date
                     self.date.append("")
         # Set the folder stats
-        self.folder_stats.append([first_date.strftime("%d-%B %Y"), last_date.strftime("%d-%B %Y")])
+        self.folder_stats.append([folder_name, first_date.strftime("%d-%B %Y"), last_date.strftime("%d-%B %Y")])
 
     def _run_image(self):
         """
@@ -126,15 +128,18 @@ class PhantomFrame(tk.Frame):
         self.folder = self.origin[self.pos_list[self.pos]]
 
         # The previous folder is shown to know whether or not to show a splash image for that folder
-        self.prev_folder = ""
-        if self.folder == self.prev_folder and not self.shuffle:
+        if self.folder != self.prev_folder and not self.shuffle:
             # Work out a way to display a splash image with the folder name and stats
-            t = 1
+            folder_index = [x[0] for x in self.folder_stats].index(self.folder)
+            self.im_overlay = self._intro_screen(folder_index)
+            skip = False
+        else:
+            # Calling the resize function to ensure that the image is shown full screen
+            self.im = self._resized_image()
+            # Calling the overlay function to add the text over the image
+            self.im_overlay = self._overlay()
+            skip = True
 
-        # Calling the resize function to ensure that the image is shown full screen
-        self.im = self._resized_image()
-        # Calling the overlay function to add the text over the image
-        self.im_overlay = self._overlay()
         # Setting it as a tkinter image
         img = ImageTk.PhotoImage(self.im_overlay)
         # Deleting the previous image on the canvas
@@ -144,9 +149,9 @@ class PhantomFrame(tk.Frame):
         # Updating the visuals
         self.update()
         # Preventing the counter from exceeding the number of images while iterating
-        if self.pos >= self.image_num:
+        if self.pos == self.image_num and skip:
             self.pos = 0
-        else:
+        elif skip:
             self.pos += 1
         time.sleep(self.timer)
         # Setting the previous folder value
@@ -224,4 +229,24 @@ class PhantomFrame(tk.Frame):
         draw.text((1, 46), self.date_1, font_color, font=self.date_font)
 
         # Return the image with the overlay on top
+        return self.im
+
+    def _intro_screen(self, index):
+        """
+        Creates a black image to be displayed before a folder with the folder name and overlays the name and dates
+        :return: Black image with overlays applied
+        """
+        self.image = Image.new(mode="RGBA", size=(1920, 1080))
+        self.im = self._resized_image()
+        draw = ImageDraw.Draw(self.im)
+        # Draw over the top for the folder name
+        centre_width = int(self.im.size[0]/2)
+        centre_height = int(self.im.size[1]/2)
+        draw.text((centre_width, centre_height), self.folder_stats[index][0], (256, 256, 256), font=self.intro_font,
+                  anchor="mm")
+        # Draw over the top for the date
+        date_string = "(" + self.folder_stats[index][1] + "    -    " + self.folder_stats[index][2] + ")"
+        draw.text((centre_width, centre_height+120), date_string, (256, 256, 256), font=self.folder_font,
+                  anchor="mm")
+
         return self.im
