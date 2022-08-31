@@ -46,9 +46,9 @@ class PhantomFrame(tk.Frame):
         # Unpacking images into a list
         if unpack_mode == "single_folder":
             # Calling a function that appends all images found in that folder
-            self._unpack(target_folder, "Main")
+            self._unpack(target_folder, "Main Folder")
         else:
-            self._unpack(target_folder, "Main")
+            self._unpack(target_folder, "Main Folder")
             # Cycling through all folders that were found and extracting from them
             for x in range(0, len(folders)):
                 self._unpack(target_folder+folders[x], folders[x])
