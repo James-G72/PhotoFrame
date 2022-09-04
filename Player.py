@@ -9,7 +9,7 @@ def test(event):
 # Initialising the window
 Window = tk.Tk() # Root window is created
 Window.title("PhotoFrame") # Title added
-folder = "/Volumes/Photos"
+folder = "D:\\"
 frame_object = frame.PhantomFrame(Window,target_folder=folder,timer=9,shuffle=False) # Initialising the frame area
 # within the root window
 frame_object.pack(side="top", fill="both", expand="true", padx=0, pady=0) # Packing and displaying (in TkInter everything to be displayed in a window needs to be either "packed" or "placed"

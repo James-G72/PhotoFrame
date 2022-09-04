@@ -32,7 +32,6 @@ class PhantomFrame(tk.Frame):
         self.folder_stats = []
         # These are the types of image that can currently be handled
         self.valid_images = [".jpg",".gif",".png",".tga"]
-        target_folder = "D:\\" # This is required to run the code on my laptop
         # This pulls all immediate folders from the location defined as "Main"
         folders = next(os.walk(target_folder))[1]
         if "System Volume Information" in folders:
