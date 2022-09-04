@@ -63,9 +63,10 @@ class PhantomFrame(tk.Frame):
         self.prev_folder = ""
 
         # Imagefont requires the font file to be imported
-        self.folder_font = ImageFont.truetype("theboldfont.ttf", 40)
-        self.date_font = ImageFont.truetype("theboldfont.ttf", 25)
-        self.intro_font = ImageFont.truetype("theboldfont.ttf", 100)
+        base_path = os.path.dirname(os.path.realpath(__file__))
+        self.folder_font = ImageFont.truetype(base_path+"\\theboldfont.ttf", 40)
+        self.date_font = ImageFont.truetype(base_path+"\\theboldfont.ttf", 25)
+        self.intro_font = ImageFont.truetype(base_path+"\\theboldfont.ttf", 100)
 
         # Creating the canvas for the window
         tk.Frame.__init__(self, parent)
