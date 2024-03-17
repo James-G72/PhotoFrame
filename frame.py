@@ -12,7 +12,7 @@ class PhantomFrame(tk.Frame):
     PhantomFrame is the host class for the logic that handles the pictures
     """
 
-    def __init__(self, parent, target_folder="", timer=5, shuffle=True):
+    def __init__(self, parent, target_folder="", timer=5, shuffle_level="folder", shuffle=True, offset=0):
         '''
         The PhantomFrame object the slideshow code.
         :param parent: The tk root window inside of which you want the pictures to be drawn
@@ -26,10 +26,21 @@ class PhantomFrame(tk.Frame):
         # Additional information is also extracted and stored such that they can later be overlayed
 
         # Defining all of the lists that hold images and information.
-        self.imgs = []
+        self.imgs = {}
         self.origin = []
-        self.date = []
-        self.folder_stats = []
+        self.date = {}
+        self.folder_stats = {}
+        self.image_num = 0
+
+        # Trying to find a previous start point.
+        with open("continue.txt", "r") as f:
+            self.continue_from = f.read()
+
+
+        # Shuffling cannot be done properly when you have an offset
+        if shuffle:
+            offset = 0
+
         # These are the types of image that can currently be handled
         self.valid_images = [".jpg",".gif",".png",".tga"]
         # This pulls all immediate folders from the location defined as "Main"
@@ -46,21 +57,35 @@ class PhantomFrame(tk.Frame):
         if unpack_mode == "single_folder":
             # Calling a function that appends all images found in that folder
             self._unpack(target_folder, "Main Folder")
+            self.shuffle_level = "photos"
         else:
+            # Checking to see if there are pictures in the top level folder
             self._unpack(target_folder, "Main Folder")
             # Cycling through all folders that were found and extracting from them
-            for x in range(0, len(folders)):
-                self._unpack(target_folder+folders[x], folders[x])
+            assert offset < len(folders), "The defined folder offset is greater than the number of folders."
+            for x in range(offset, len(folders)):
+                self._unpack(target_folder+"\\"+folders[x], folders[x])
+            self.shuffle_level = shuffle_level
 
-        self.image_num = len(self.imgs)
-        # Defining a list of positions to shuffle such that we don't have to shuffle the actual lists
-        self.pos_list = [x for x in range(0, self.image_num)]
+        # Defining the order in which the folders or photos should be iterated through
+        self.folder_order = [x for x in self.imgs.keys()]
+        if self.shuffle_level == "folder":
+            if shuffle:
+                random.shuffle(self.folder_order)
+        elif self.shuffle_level == "photos":
+            self.pos_list = [x for x in range(0, self.image_num)]
+            if shuffle:
+                random.shuffle(self.pos_list)
         self.shuffle = shuffle
-        if self.shuffle:
-            random.shuffle(self.pos_list)
+        if self.continue_from in [x for x in self.imgs.keys()] and not shuffle:
+            cut_index = [x for x in self.imgs.keys()].index(self.continue_from)
+            self.folder_order = self._re_order_list(self.folder_order, cut_index)
+
         self.timer = timer
         self.pos = 0
+        self.folder_pos = 0
         self.prev_folder = ""
+        self.current_folder = self.folder_order[0]
 
         # Imagefont requires the font file to be imported
         base_path = os.path.dirname(os.path.realpath(__file__))
@@ -76,6 +101,18 @@ class PhantomFrame(tk.Frame):
         self.canvas = tk.Canvas(self,borderwidth=0,highlightthickness=0,width=self.c_width,height=self.c_height,background="black")
         self.canvas.pack(side="top", fill="both", expand=True)  # Packed with a small amount of padding either side
 
+    def _re_order_list(self, list, offset):
+        """
+        Taking a list and offset and re-ording the list such that the xth element onwards are at the start and all elements before that are before it.
+        """
+        assert offset < len(list), "Cannot split a list by an index that is greater than the length of the list"
+        first = list[offset:]
+        last = list[:offset]
+        last.reverse()
+        for name in last:
+            first.append(name)
+        return first
+
     def _unpack(self, target, folder_name):
         """
         Searches through directory and appends all suitable images found to self.imgs
@@ -87,6 +124,15 @@ class PhantomFrame(tk.Frame):
         first_date = datetime.datetime.now()
         # Setting a time a very long time in the past (1600s)
         last_date = datetime.datetime.now() - datetime.timedelta(days=150000)
+
+        # Appending a new list to the origin dictionary
+        if folder_name not in self.imgs.keys():
+            self.imgs[folder_name] = {}
+            self.date[folder_name] = {}
+
+        # index tracker within each folder
+        folder_pos = 0
+
         # For all files in the directory
         for f in os.listdir(target):
             if f[0] != ".":
@@ -95,7 +141,8 @@ class PhantomFrame(tk.Frame):
                 if ext.lower() not in self.valid_images:
                     continue
                 # Appending the image file to the list
-                self.imgs.append(Image.open(os.path.join(target, f)))
+                self.imgs[folder_name][folder_pos] = Image.open(os.path.join(target, f))
+                self.image_num += 1
                 # Appending the folder name
                 self.origin.append(folder_name)
                 try:
@@ -104,8 +151,8 @@ class PhantomFrame(tk.Frame):
                     # Turn the data into a datetime object
                     date_time_object = datetime.datetime.strptime(exif.split(" ")[0], '%Y:%m:%d')
                     # Format it in a better way
-                    proper_date = date_time_object.strftime("%d-%B %Y")
-                    self.date.append(proper_date)
+                    proper_date = date_time_object.strftime("%d-%B-%Y")
+                    self.date[folder_name][folder_pos] = proper_date
                     # Check if this date will change the extremes in anyway
                     if date_time_object < first_date:
                         first_date = date_time_object
@@ -113,9 +160,10 @@ class PhantomFrame(tk.Frame):
                         last_date = date_time_object
                 except:
                     # If the above fails then just append a blank date
-                    self.date.append("")
+                    self.date[folder_name][folder_pos] = ""
+                folder_pos += 1
         # Set the folder stats
-        self.folder_stats.append([folder_name, first_date.strftime("%d-%B %Y"), last_date.strftime("%d-%B %Y")])
+        self.folder_stats[folder_name] = [folder_name, first_date.strftime("%d-%B %Y"), last_date.strftime("%d-%B %Y")]
 
     def _run_image(self):
         """
@@ -123,15 +171,13 @@ class PhantomFrame(tk.Frame):
         :return: None
         """
         # Pulling out the image that we want to show next
-        self.image = self.imgs[self.pos_list[self.pos]]
-        self.date_1 = self.date[self.pos_list[self.pos]]
-        self.folder = self.origin[self.pos_list[self.pos]]
+        self.image = self.imgs[self.current_folder][self.pos]
+        self.date_1 = self.date[self.current_folder][self.pos]
 
-        # The previous folder is shown to know whether or not to show a splash image for that folder
-        if self.folder != self.prev_folder and not self.shuffle:
-            # Work out a way to display a splash image with the folder name and stats
-            folder_index = [x[0] for x in self.folder_stats].index(self.folder)
-            self.im_overlay = self._intro_screen(folder_index)
+        # The previous folder is tracked to know whether or not to show a splash image for that folder
+        if self.current_folder != self.prev_folder and self.shuffle_level != "photos":
+            # Ask the intro screen function to display the name of the folder and the range of dates within it
+            self.im_overlay = self._intro_screen(self.current_folder)
             skip = False
         else:
             # Calling the resize function to ensure that the image is shown full screen
@@ -149,13 +195,18 @@ class PhantomFrame(tk.Frame):
         # Updating the visuals
         self.update()
         # Preventing the counter from exceeding the number of images while iterating
-        if self.pos == self.image_num and skip:
+        if self.pos == len(self.imgs[self.current_folder]) - 1 and skip:
             self.pos = 0
+            self.folder_pos += 1
+            self.prev_folder = self.current_folder
+            self.current_folder = [x for x in self.imgs.keys()][self.folder_pos]
         elif skip:
             self.pos += 1
+            self.prev_folder = self.current_folder
+        else:
+            self.prev_folder = self.current_folder
         time.sleep(self.timer)
-        # Setting the previous folder value
-        self.prev_folder = self.folder
+
         # Waiting the specified duration of time before running the function again
         self.after(self.timer*1000, self._run_image())
 
@@ -224,14 +275,14 @@ class PhantomFrame(tk.Frame):
         # Create a draw image
         draw = ImageDraw.Draw(self.im)
         # Draw over the top for the folder name
-        draw.text((1, 1), self.folder, font_color, font=self.folder_font)
+        draw.text((1, 1), self.current_folder, font_color, font=self.folder_font)
         # Draw over the top for the date
         draw.text((1, 46), self.date_1, font_color, font=self.date_font)
 
         # Return the image with the overlay on top
         return self.im
 
-    def _intro_screen(self, index):
+    def _intro_screen(self, name):
         """
         Creates a black image to be displayed before a folder with the folder name and overlays the name and dates
         :return: Black image with overlays applied
@@ -242,10 +293,10 @@ class PhantomFrame(tk.Frame):
         # Draw over the top for the folder name
         centre_width = int(self.im.size[0]/2)
         centre_height = int(self.im.size[1]/2)
-        draw.text((centre_width, centre_height), self.folder_stats[index][0], (256, 256, 256), font=self.intro_font,
+        draw.text((centre_width, centre_height), self.folder_stats[name][0], (256, 256, 256), font=self.intro_font,
                   anchor="mm")
         # Draw over the top for the date
-        date_string = "(" + self.folder_stats[index][1] + "    -    " + self.folder_stats[index][2] + ")"
+        date_string = "(" + self.folder_stats[name][1] + "    -    " + self.folder_stats[name][2] + ")"
         draw.text((centre_width, centre_height+120), date_string, (256, 256, 256), font=self.folder_font,
                   anchor="mm")
 
