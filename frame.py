@@ -199,7 +199,9 @@ class PhantomFrame(tk.Frame):
             self.pos = 0
             self.folder_pos += 1
             self.prev_folder = self.current_folder
-            self.current_folder = [x for x in self.imgs.keys()][self.folder_pos]
+            self.current_folder = self.folder_order[self.folder_pos]
+            with open("continue.txt", "w") as f:
+                f.write(self.current_folder)
         elif skip:
             self.pos += 1
             self.prev_folder = self.current_folder
