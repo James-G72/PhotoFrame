@@ -27,24 +27,23 @@ class PhantomFrame(tk.Frame):
 
         # Defining all of the lists that hold images and information.
         self.imgs = {}
-        self.origin = []
         self.date = {}
         self.folder_stats = {}
         self.image_num = 0
 
         # Trying to find a previous start point.
-        with open("continue.txt", "r") as f:
+        self.base_path = os.path.dirname(os.path.realpath(__file__))
+        with open(self.base_path+"\\continue.txt", "r") as f:
             self.continue_from = f.read()
-
 
         # Shuffling cannot be done properly when you have an offset
         if shuffle:
             offset = 0
 
         # These are the types of image that can currently be handled
-        self.valid_images = [".jpg",".gif",".png",".tga"]
+        self.valid_images = [".jpg", ".gif", ".png", ".tga"]
         # This pulls all immediate folders from the location defined as "Main"
-        folders = next(os.walk(target_folder))[1]
+        folders = sorted(next(os.walk(target_folder))[1])
         if "System Volume Information" in folders:
             folders.remove("System Volume Information")
         # If no folders are found then the photos can all be unpacked from a single folder
@@ -77,10 +76,12 @@ class PhantomFrame(tk.Frame):
             if shuffle:
                 random.shuffle(self.pos_list)
         self.shuffle = shuffle
+        # Checking if the continue_from value is a valid folder
         if self.continue_from in [x for x in self.imgs.keys()] and not shuffle:
             cut_index = [x for x in self.imgs.keys()].index(self.continue_from)
             self.folder_order = self._re_order_list(self.folder_order, cut_index)
 
+        # Setting values required for tracking image order etc
         self.timer = timer
         self.pos = 0
         self.folder_pos = 0
@@ -88,10 +89,12 @@ class PhantomFrame(tk.Frame):
         self.current_folder = self.folder_order[0]
 
         # Imagefont requires the font file to be imported
-        base_path = os.path.dirname(os.path.realpath(__file__))
-        self.folder_font = ImageFont.truetype(base_path+"\\theboldfont.ttf", 40)
-        self.date_font = ImageFont.truetype(base_path+"\\theboldfont.ttf", 25)
-        self.intro_font = ImageFont.truetype(base_path+"\\theboldfont.ttf", 100)
+        self.date_font = ImageFont.truetype(self.base_path+"\\theboldfont.ttf", 25)
+        self.folder_font = ImageFont.truetype(self.base_path+"\\theboldfont.ttf", 40)
+        self.splash_font_small = ImageFont.truetype(self.base_path+"\\theboldfont.ttf", 70)
+        self.intro_font = ImageFont.truetype(self.base_path+"\\theboldfont.ttf", 100)
+        self.splash_font_big = ImageFont.truetype(self.base_path+"\\theboldfont.ttf", 220)
+
 
         # Creating the canvas for the window
         tk.Frame.__init__(self, parent)
@@ -100,6 +103,9 @@ class PhantomFrame(tk.Frame):
         self.c_height = self.winfo_screenheight()
         self.canvas = tk.Canvas(self,borderwidth=0,highlightthickness=0,width=self.c_width,height=self.c_height,background="black")
         self.canvas.pack(side="top", fill="both", expand=True)  # Packed with a small amount of padding either side
+
+        # Setting up a bool that means the big intro page is only played once
+        self.boot = True
 
     def _re_order_list(self, list, offset):
         """
@@ -117,7 +123,7 @@ class PhantomFrame(tk.Frame):
         """
         Searches through directory and appends all suitable images found to self.imgs
         :param target: Location in which to search for images
-        :param folder_name: The name to be appended to self.origin
+        :param folder_name: The name of the folder for use in dictionaries
         :return: None
         """
         # Defining variables for tracking the first and last date in the folder
@@ -143,8 +149,6 @@ class PhantomFrame(tk.Frame):
                 # Appending the image file to the list
                 self.imgs[folder_name][folder_pos] = Image.open(os.path.join(target, f))
                 self.image_num += 1
-                # Appending the folder name
-                self.origin.append(folder_name)
                 try:
                     # Attempt to pull the date exif data
                     exif = Image.open(os.path.join(target,f))._getexif()[36867]
@@ -167,14 +171,17 @@ class PhantomFrame(tk.Frame):
 
     def _run_image(self):
         """
-        This function is self_calling and handles all of the visuals. Each image is cycled through
+        This function is self_calling and handles all the visuals. Each image is cycled through
         :return: None
         """
+        if self.boot:
+            self._splash()
+
         # Pulling out the image that we want to show next
         self.image = self.imgs[self.current_folder][self.pos]
         self.date_1 = self.date[self.current_folder][self.pos]
 
-        # The previous folder is tracked to know whether or not to show a splash image for that folder
+        # The previous folder is tracked to know whether to show a splash image for that folder
         if self.current_folder != self.prev_folder and self.shuffle_level != "photos":
             # Ask the intro screen function to display the name of the folder and the range of dates within it
             self.im_overlay = self._intro_screen(self.current_folder)
@@ -200,7 +207,7 @@ class PhantomFrame(tk.Frame):
             self.folder_pos += 1
             self.prev_folder = self.current_folder
             self.current_folder = self.folder_order[self.folder_pos]
-            with open("continue.txt", "w") as f:
+            with open(self.base_path+"\\continue.txt", "w") as f:
                 f.write(self.current_folder)
         elif skip:
             self.pos += 1
@@ -303,3 +310,40 @@ class PhantomFrame(tk.Frame):
                   anchor="mm")
 
         return self.im
+
+    def _splash(self):
+        self.image = Image.new(mode="RGBA", size=(1920, 1080), color=(255, 255, 255))
+        self.im = self._resized_image()
+        draw = ImageDraw.Draw(self.im)
+        centre_width = int(self.im.size[0]/2)
+        centre_height = int(self.im.size[1]/2)
+        color = (0, 0, 0)
+        draw.text((centre_width, centre_height-200), "PhotoFrame", color, font=self.splash_font_big,
+                  anchor="mm")
+        draw.text((centre_width+500, centre_height-90), "by James Gower", color, font=self.folder_font,
+                  anchor="mm")
+        draw.text((centre_width-450, centre_height+10), "Settings:", color, font=self.splash_font_small,
+                  anchor="mm")
+        height = 60
+        for setting in ["* Shuffle:  "+str(self.shuffle), "* Level:  "+str(self.shuffle_level), "* Delay:  "+str(self.timer)]:
+            draw.text((centre_width - 350, centre_height+height), setting, color, font=self.folder_font,
+                      anchor="mm")
+            height += 40
+        draw.text((centre_width + 350, centre_height+10), "Total Images:", color, font=self.splash_font_small,
+                  anchor="mm")
+        draw.text((centre_width + 350, centre_height+60), str(self.image_num), color, font=self.folder_font,
+                  anchor="mm")
+
+
+
+        # Setting it as a tkinter image
+        img = ImageTk.PhotoImage(self.im)
+        # Deleting the previous image on the canvas
+        self.canvas.delete("image")
+        # Pasting the new image onto the canvas with the tag "image" so it can easily be removed
+        self.canvas.create_image(self.c_width/2,self.c_height/2, image=img, anchor="c", tag="image")
+
+        self.update()
+        time.sleep(self.timer)
+        # Ensuring that the splash screen cannot be called again
+        self.boot = False
