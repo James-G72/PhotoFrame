@@ -1,7 +1,7 @@
 import tkinter as tk
 # Importing the custom photo frame
 import frame
-def test(event):
+def exit_fullscreen(event):
     # This functions allows the full-screen to be exited
     Window.attributes("-fullscreen", False)
 
@@ -19,7 +19,7 @@ frame_object = frame.PhantomFrame(Window,target_folder=folder,timer=TIMER,shuffl
 frame_object.pack(side="top", fill="both", expand="true", padx=0, pady=0) # Packing and displaying (in TkInter everything to be displayed in a window needs to be either "packed" or "placed"
 Window.resizable(width=False, height=False)  # This locks the size of the window so it cant be resized
 Window.attributes("-fullscreen", True)
-Window.bind("<Escape>", test)
+Window.bind("<Escape>", exit_fullscreen)
 # Window.geometry(str(Window.winfo_screenwidth())+"x"+str(Window.winfo_screenheight())) # This locks the geometry including side_size to encompass the visuals
 
 # As with most GUIs the game runs out of the host object which in this case is a GameBoard called board.
