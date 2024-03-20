@@ -39,7 +39,7 @@ class PhantomFrame(tk.Frame):
         # All of the images are processed upon start-up and placed into a list
         # Additional information is also extracted and stored such that they can later be overlayed
 
-        # Defining all of the lists that hold images and information.
+        # Defining all lists that hold images and information.
         self.imgs = {}
         self.date = {}
         self.folder_stats = {}
@@ -110,7 +110,8 @@ class PhantomFrame(tk.Frame):
         self.splash_font_big = ImageFont.truetype(self.base_path + "\\theboldfont.ttf", 220)
 
         # Creating the canvas for the window
-        tk.Frame.__init__(self, parent)
+        self.top = parent
+        tk.Frame.__init__(self, self.top)
         # This is self-explanatory and provides a blank space upon which visual objects can be placed
         self.c_width = self.winfo_screenwidth()
         self.c_height = self.winfo_screenheight()
@@ -164,7 +165,7 @@ class PhantomFrame(tk.Frame):
                         first_date = date_time_object
                     if date_time_object > last_date:
                         last_date = date_time_object
-                except AttributeError as _:
+                except:
                     # If the above fails then just append a blank date
                     self.date[folder_name][folder_pos] = ""
                 folder_pos += 1
@@ -178,6 +179,7 @@ class PhantomFrame(tk.Frame):
         """
         if self.boot:
             self._splash()
+            time.sleep(self.timer)
 
         # Pulling out the image that we want to show next
         self.image = self.imgs[self.current_folder][self.pos]
@@ -216,10 +218,15 @@ class PhantomFrame(tk.Frame):
             self.prev_folder = self.current_folder
         else:
             self.prev_folder = self.current_folder
-        time.sleep(self.timer)
 
+        time.sleep(self.timer)
         # Waiting the specified duration of time before running the function again
-        self.after(self.timer * 1000, self._run_image())
+        self.canvas.after(5000, self._run_image())
+
+    def _play_next_after(self, delay):
+        """
+        Performs the
+        """
 
     def _resized_image(self):
         """
@@ -286,6 +293,8 @@ class PhantomFrame(tk.Frame):
         # Create a draw image
         draw = ImageDraw.Draw(self.im)
         # Draw over the top for the folder name
+        # TODO add some room to this so that it isn't right against the left hand side of the screen if the image is
+        #  full width
         draw.text((1, 1), self.current_folder, font_color, font=self.folder_font)
         # Draw over the top for the date
         draw.text((1, 46), self.date_1, font_color, font=self.date_font)
@@ -345,6 +354,5 @@ class PhantomFrame(tk.Frame):
         self.canvas.create_image(self.c_width / 2, self.c_height / 2, image=img, anchor="c", tag="image")
 
         self.update()
-        time.sleep(self.timer)
         # Ensuring that the splash screen cannot be called again
         self.boot = False
