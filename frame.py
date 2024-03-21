@@ -122,6 +122,50 @@ class PhantomFrame(tk.Frame):
         # Setting up a bool that means the big intro page is only played once
         self.boot = True
 
+        self._bind_keys()
+
+    def _bind_keys(self):
+        self.top.bind("<Left>", self.left_keypress)
+        self.top.bind("<Right>", self.right_keypress)
+
+    def right_keypress(self, event):
+        self._splash()
+    def left_keypress(self, event):
+        self.image = Image.new(mode="RGBA", size=(1920, 1080), color=(0, 0, 0))
+        self.im = self._resized_image()
+        draw = ImageDraw.Draw(self.im)
+        centre_width = int(self.im.size[0] / 2)
+        centre_height = int(self.im.size[1] / 2)
+        color = (255, 255, 255)
+        draw.text((centre_width, centre_height - 200), "PhotoFrame", color, font=self.splash_font_big,
+                  anchor="mm")
+        draw.text((centre_width + 500, centre_height - 90), "by James Gower", color, font=self.folder_font,
+                  anchor="mm")
+        draw.text((centre_width - 450, centre_height + 10), "Settings:", color, font=self.splash_font_small,
+                  anchor="mm")
+        height = 60
+        for setting in ["* Shuffle:  " + str(self.shuffle), "* Level:  " + str(self.shuffle_level), "* Delay:  "
+                                                                                                    + str(self.timer)]:
+            draw.text((centre_width - 350, centre_height + height), setting, color, font=self.folder_font,
+                      anchor="mm")
+            height += 40
+        draw.text((centre_width + 350, centre_height + 10), "Total Images:", color, font=self.splash_font_small,
+                  anchor="mm")
+        draw.text((centre_width + 350, centre_height + 60), str(self.image_num), color, font=self.folder_font,
+                  anchor="mm")
+
+        # Setting it as a tkinter image
+        img = ImageTk.PhotoImage(self.im)
+        # Deleting the previous image on the canvas
+        self.canvas.delete("image")
+        # Pasting the new image onto the canvas with the tag "image" so it can easily be removed
+        self.canvas.create_image(self.c_width / 2, self.c_height / 2, image=img, anchor="c", tag="image")
+
+        self.update()
+        # Ensuring that the splash screen cannot be called again
+        self.boot = False
+
+        self.mainloop()
     def _unpack(self, target, folder_name):
         """
         Searches through directory and appends all suitable images found to self.imgs
@@ -356,3 +400,5 @@ class PhantomFrame(tk.Frame):
         self.update()
         # Ensuring that the splash screen cannot be called again
         self.boot = False
+
+        self.mainloop()

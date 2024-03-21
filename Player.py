@@ -30,7 +30,4 @@ Window.bind("<Escape>", exit_fullscreen)
 # Window.geometry(str(Window.winfo_screenwidth())+"x"+str(Window.winfo_screenheight())) # This locks the geometry
 # including side_size to encompass the visuals
 
-# As with most GUIs the game runs out of the host object which in this case is a GameBoard called board.
-# By calling mainloop() on the tkinter window we allow the buttons to run the game with no further code required here,
-Window.after(1, frame_object._run_image())
-frame_object.mainloop()
+frame_object._splash()
