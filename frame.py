@@ -103,11 +103,7 @@ class PhantomFrame(tk.Frame):
         self.current_folder = self.folder_order[0]
 
         # Imagefont requires the font file to be imported
-        self.date_font = ImageFont.truetype(self.base_path + "\\theboldfont.ttf", 25)
-        self.folder_font = ImageFont.truetype(self.base_path + "\\theboldfont.ttf", 40)
-        self.splash_font_small = ImageFont.truetype(self.base_path + "\\theboldfont.ttf", 70)
-        self.intro_font = ImageFont.truetype(self.base_path + "\\theboldfont.ttf", 100)
-        self.splash_font_big = ImageFont.truetype(self.base_path + "\\theboldfont.ttf", 220)
+        self.font_path = self.base_path + "\\theboldfont.ttf"
 
         # Creating the canvas for the window
         self.top = parent
@@ -137,21 +133,21 @@ class PhantomFrame(tk.Frame):
         centre_width = int(self.im.size[0] / 2)
         centre_height = int(self.im.size[1] / 2)
         color = (255, 255, 255)
-        draw.text((centre_width, centre_height - 200), "PhotoFrame", color, font=self.splash_font_big,
+        draw.text((centre_width, centre_height - 200), "PhotoFrame", color, font=self._font_gen(220),
                   anchor="mm")
-        draw.text((centre_width + 500, centre_height - 90), "by James Gower", color, font=self.folder_font,
+        draw.text((centre_width + 500, centre_height - 90), "by James Gower", color, font=self._font_gen(40),
                   anchor="mm")
-        draw.text((centre_width - 450, centre_height + 10), "Settings:", color, font=self.splash_font_small,
+        draw.text((centre_width - 450, centre_height + 10), "Settings:", color, font=self._font_gen(70),
                   anchor="mm")
         height = 60
         for setting in ["* Shuffle:  " + str(self.shuffle), "* Level:  " + str(self.shuffle_level), "* Delay:  "
                                                                                                     + str(self.timer)]:
-            draw.text((centre_width - 350, centre_height + height), setting, color, font=self.folder_font,
+            draw.text((centre_width - 350, centre_height + height), setting, color, font=self._font_gen(40),
                       anchor="mm")
             height += 40
-        draw.text((centre_width + 350, centre_height + 10), "Total Images:", color, font=self.splash_font_small,
+        draw.text((centre_width + 350, centre_height + 10), "Total Images:", color, font=self._font_gen(70),
                   anchor="mm")
-        draw.text((centre_width + 350, centre_height + 60), str(self.image_num), color, font=self.folder_font,
+        draw.text((centre_width + 350, centre_height + 60), str(self.image_num), color, font=self._font_gen(40),
                   anchor="mm")
 
         # Setting it as a tkinter image
@@ -166,6 +162,7 @@ class PhantomFrame(tk.Frame):
         self.boot = False
 
         self.mainloop()
+
     def _unpack(self, target, folder_name):
         """
         Searches through directory and appends all suitable images found to self.imgs
@@ -215,6 +212,13 @@ class PhantomFrame(tk.Frame):
                 folder_pos += 1
         # Set the folder stats
         self.folder_stats[folder_name] = [folder_name, first_date.strftime("%d-%B %Y"), last_date.strftime("%d-%B %Y")]
+
+    def _loop_until_time(self, func):
+        """
+        Performs a loop going from itself repeatedly until a certain time is reached
+        """
+        while time.now() < self.next_time:
+            self._loop_until_time()
 
     def _run_image(self):
         """
@@ -339,29 +343,37 @@ class PhantomFrame(tk.Frame):
         # Draw over the top for the folder name
         # TODO add some room to this so that it isn't right against the left hand side of the screen if the image is
         #  full width
-        draw.text((1, 1), self.current_folder, font_color, font=self.folder_font)
+        draw.text((1, 1), self.current_folder, font_color, font=self._font_gen(40))
         # Draw over the top for the date
-        draw.text((1, 46), self.date_1, font_color, font=self.date_font)
+        draw.text((1, 46), self.date_1, font_color, font=self._font_gen(25))
 
         # Return the image with the overlay on top
         return self.im
 
+    def _font_gen(self, size):
+        """
+        Generate an ImageFont object of a given font-size
+        size:
+        :return: ImageFont object
+        """
+        return ImageFont.truetype(self.font_path, size)
     def _intro_screen(self, name):
         """
         Creates a black image to be displayed before a folder with the folder name and overlays the name and dates
         :return: Black image with overlays applied
         """
+        # TODO make the font-size dependent on the width of the words
         self.image = Image.new(mode="RGBA", size=(1920, 1080))
         self.im = self._resized_image()
         draw = ImageDraw.Draw(self.im)
         # Draw over the top for the folder name
         centre_width = int(self.im.size[0] / 2)
         centre_height = int(self.im.size[1] / 2)
-        draw.text((centre_width, centre_height), self.folder_stats[name][0], (256, 256, 256), font=self.intro_font,
+        draw.text((centre_width, centre_height), self.folder_stats[name][0], (256, 256, 256), font=self._font_gen(100),
                   anchor="mm")
         # Draw over the top for the date
         date_string = "(" + self.folder_stats[name][1] + "    -    " + self.folder_stats[name][2] + ")"
-        draw.text((centre_width, centre_height + 120), date_string, (256, 256, 256), font=self.folder_font,
+        draw.text((centre_width, centre_height + 120), date_string, (256, 256, 256), font=self._font_gen(40),
                   anchor="mm")
 
         return self.im
@@ -373,21 +385,21 @@ class PhantomFrame(tk.Frame):
         centre_width = int(self.im.size[0] / 2)
         centre_height = int(self.im.size[1] / 2)
         color = (0, 0, 0)
-        draw.text((centre_width, centre_height - 200), "PhotoFrame", color, font=self.splash_font_big,
+        draw.text((centre_width, centre_height - 200), "PhotoFrame", color, font=self._font_gen(220),
                   anchor="mm")
-        draw.text((centre_width + 500, centre_height - 90), "by James Gower", color, font=self.folder_font,
+        draw.text((centre_width + 500, centre_height - 90), "by James Gower", color, font=self._font_gen(40),
                   anchor="mm")
-        draw.text((centre_width - 450, centre_height + 10), "Settings:", color, font=self.splash_font_small,
+        draw.text((centre_width - 450, centre_height + 10), "Settings:", color, font=self._font_gen(70),
                   anchor="mm")
         height = 60
         for setting in ["* Shuffle:  " + str(self.shuffle), "* Level:  " + str(self.shuffle_level), "* Delay:  "
                                                                                                     + str(self.timer)]:
-            draw.text((centre_width - 350, centre_height + height), setting, color, font=self.folder_font,
+            draw.text((centre_width - 350, centre_height + height), setting, color, font=self._font_gen(40),
                       anchor="mm")
             height += 40
-        draw.text((centre_width + 350, centre_height + 10), "Total Images:", color, font=self.splash_font_small,
+        draw.text((centre_width + 350, centre_height + 10), "Total Images:", color, font=self._font_gen(70),
                   anchor="mm")
-        draw.text((centre_width + 350, centre_height + 60), str(self.image_num), color, font=self.folder_font,
+        draw.text((centre_width + 350, centre_height + 60), str(self.image_num), color, font=self._font_gen(40),
                   anchor="mm")
 
         # Setting it as a tkinter image
