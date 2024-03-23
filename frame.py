@@ -5,6 +5,7 @@ import random
 import math
 import time
 import datetime
+import copy
 
 
 def _re_order_list(list_in, offset):
@@ -44,6 +45,7 @@ class PhantomFrame(tk.Frame):
         self.date = {}
         self.folder_stats = {}
         self.image_num = 0
+        self.menu_state = {"active": self._null}
 
         # Trying to find a previous start point.
         self.base_path = os.path.dirname(os.path.realpath(__file__))
@@ -98,6 +100,8 @@ class PhantomFrame(tk.Frame):
         # Setting values required for tracking image order etc
         self.timer = timer
         self.pos = 0
+        self.paused = False
+        self.in_menu = True
         self.folder_pos = 0
         self.prev_folder = ""
         self.current_folder = self.folder_order[0]
@@ -120,48 +124,96 @@ class PhantomFrame(tk.Frame):
 
         self._bind_keys()
 
+    def _tksleep(self, t):
+        """
+        This function is taken from: https://stackoverflow.com/questions/74214619/how-to-use-tkinter-after-method-to-delay-a-loop-instead-time-sleep
+        It performs a function that I have been trying to do for a long time in tkinter which is to successfully wait
+        for a set amount of time while still receiving inputs.
+        """
+        self.sleep_time = time.time()
+        ms = int(t * 1000)
+        root = tk._get_default_root()
+        var = tk.IntVar(root)
+        root.after(ms, lambda: var.set(1))
+        root.wait_variable(var)
+
+    def _null(self):
+        """
+        A placeholder function that doesn't do anything but sits inside the menu_state dictionary when there is no
+        selected menu item.
+        """
+        print("Null menu function triggered.")
+        return
+
     def _bind_keys(self):
-        self.top.bind("<Left>", self.left_keypress)
-        self.top.bind("<Right>", self.right_keypress)
+        """
+        Binding certain keys to the top level widget such that a keyboard can interact with the frame object.
+        """
+        self.top.bind("<space>", self._space_statemachine)
+        self.top.bind("<Return>", self._return_statemachine)
 
-    def right_keypress(self, event):
-        self._splash()
-    def left_keypress(self, event):
-        self.image = Image.new(mode="RGBA", size=(1920, 1080), color=(0, 0, 0))
-        self.im = self._resized_image()
-        draw = ImageDraw.Draw(self.im)
-        centre_width = int(self.im.size[0] / 2)
-        centre_height = int(self.im.size[1] / 2)
-        color = (255, 255, 255)
-        draw.text((centre_width, centre_height - 200), "PhotoFrame", color, font=self._font_gen(220),
-                  anchor="mm")
-        draw.text((centre_width + 500, centre_height - 90), "by James Gower", color, font=self._font_gen(40),
-                  anchor="mm")
-        draw.text((centre_width - 450, centre_height + 10), "Settings:", color, font=self._font_gen(70),
-                  anchor="mm")
-        height = 60
-        for setting in ["* Shuffle:  " + str(self.shuffle), "* Level:  " + str(self.shuffle_level), "* Delay:  "
-                                                                                                    + str(self.timer)]:
-            draw.text((centre_width - 350, centre_height + height), setting, color, font=self._font_gen(40),
-                      anchor="mm")
-            height += 40
-        draw.text((centre_width + 350, centre_height + 10), "Total Images:", color, font=self._font_gen(70),
-                  anchor="mm")
-        draw.text((centre_width + 350, centre_height + 60), str(self.image_num), color, font=self._font_gen(40),
-                  anchor="mm")
+    def _return_statemachine(self, event):
+        """
+        Controlling how the enter key interacts with the frame.
+        """
+        if self.in_menu:
+            self.menu_state["active"]()
+        self.top.mainloop()
 
-        # Setting it as a tkinter image
-        img = ImageTk.PhotoImage(self.im)
-        # Deleting the previous image on the canvas
+    def _space_statemachine(self, event):
+        """
+        Controlling how the space bar interacts. Its action is dependent on the current state of the frame.
+        """
+        if not self.in_menu:
+            if self.paused:
+                self.paused = False
+                # self._run_image()
+                self._redraw()
+                self._tksleep(self.sleep_remaining)
+                self._run_image()
+            else:
+                self.paused = True
+                # self._redraw()
+                # Working out how long ago the previous _tksleep started
+                self.sleep_remaining = self.timer - (time.time() - self.sleep_time)
+                self.sleep_time = None
+                self._draw_pause()
+        else:
+            self.playing_photos = True
+            self.in_menu = False
+            self._run_image()
+        self.top.mainloop()
+
+    def _draw_to_canvas(self, image, set_drawn=True):
+        """
+        The function that draws a given image to the tkinter canvas.
+        This has been packaged into a function as there are several steps to this process in order to store the PIL
+        image that is being drawn as well as the ImageTK.PhotoImage object.
+        """
+        # This has to be a self. variable or else upon exiting the _draw_pause function the canvas loses the
+        # reference to the image and goes blank
+        self.photo_image = ImageTk.PhotoImage(image)
         self.canvas.delete("image")
         # Pasting the new image onto the canvas with the tag "image" so it can easily be removed
-        self.canvas.create_image(self.c_width / 2, self.c_height / 2, image=img, anchor="c", tag="image")
-
+        self.canvas.create_image(self.c_width / 2, self.c_height / 2, image=self.photo_image, anchor="c", tag="image")
         self.update()
-        # Ensuring that the splash screen cannot be called again
-        self.boot = False
+        # If it has been requested to save the PIL image
+        if set_drawn:
+            self.drawn_image = image
 
-        self.mainloop()
+    def _draw_pause(self):
+        if self.paused:
+            # Pulling in the existing image that is on the canvas
+            # Because of the way Python handles the memory we need to make a copy of the image so we don't edit the
+            # original
+            back_im = copy.copy(self.drawn_image)
+            # Creating a blank image with an alpha of 120
+            pause_im = Image.new('RGBA', back_im.size, (255, 255, 255, 180))
+            draw_pause = ImageDraw.Draw(pause_im)
+            draw_pause.text((960, 540), "I I", (0, 0, 0), font=self._font_gen(200), anchor="mm")
+            back_im.putalpha(pause_im.getchannel('A').point(lambda x: (x*0.2)))
+            # Draw the image to the canvas but don't update the drawn image
+            self._draw_to_canvas(back_im, set_drawn=False)
 
     def _unpack(self, target, folder_name):
         """
@@ -213,22 +265,11 @@ class PhantomFrame(tk.Frame):
         # Set the folder stats
         self.folder_stats[folder_name] = [folder_name, first_date.strftime("%d-%B %Y"), last_date.strftime("%d-%B %Y")]
 
-    def _loop_until_time(self, func):
-        """
-        Performs a loop going from itself repeatedly until a certain time is reached
-        """
-        while time.now() < self.next_time:
-            self._loop_until_time()
-
     def _run_image(self):
         """
         This function is self_calling and handles all the visuals. Each image is cycled through
         :return: None
         """
-        if self.boot:
-            self._splash()
-            time.sleep(self.timer)
-
         # Pulling out the image that we want to show next
         self.image = self.imgs[self.current_folder][self.pos]
         self.date_1 = self.date[self.current_folder][self.pos]
@@ -245,14 +286,8 @@ class PhantomFrame(tk.Frame):
             self.im_overlay = self._overlay()
             skip = True
 
-        # Setting it as a tkinter image
-        img = ImageTk.PhotoImage(self.im_overlay)
-        # Deleting the previous image on the canvas
-        self.canvas.delete("image")
-        # Pasting the new image onto the canvas
-        self.canvas.create_image(self.c_width / 2, self.c_height / 2, image=img, anchor="c", tag="image")
-        # Updating the visuals
-        self.update()
+        self._draw_to_canvas(self.im_overlay)
+
         # Preventing the counter from exceeding the number of images while iterating
         if self.pos == len(self.imgs[self.current_folder]) - 1 and skip:
             self.pos = 0
@@ -267,14 +302,16 @@ class PhantomFrame(tk.Frame):
         else:
             self.prev_folder = self.current_folder
 
-        time.sleep(self.timer)
-        # Waiting the specified duration of time before running the function again
-        self.canvas.after(5000, self._run_image())
+        self._tksleep(self.timer)
+        self._run_image()
 
-    def _play_next_after(self, delay):
+
+    def _redraw(self):
         """
-        Performs the
+        If this function is called it implies that there has been a state-change that is not currently implemented in
+        the image self.img. The current image is therefore redrawn from scratch.
         """
+        self._draw_to_canvas(self.drawn_image)
 
     def _resized_image(self):
         """
@@ -357,6 +394,7 @@ class PhantomFrame(tk.Frame):
         :return: ImageFont object
         """
         return ImageFont.truetype(self.font_path, size)
+
     def _intro_screen(self, name):
         """
         Creates a black image to be displayed before a folder with the folder name and overlays the name and dates
@@ -402,14 +440,7 @@ class PhantomFrame(tk.Frame):
         draw.text((centre_width + 350, centre_height + 60), str(self.image_num), color, font=self._font_gen(40),
                   anchor="mm")
 
-        # Setting it as a tkinter image
-        img = ImageTk.PhotoImage(self.im)
-        # Deleting the previous image on the canvas
-        self.canvas.delete("image")
-        # Pasting the new image onto the canvas with the tag "image" so it can easily be removed
-        self.canvas.create_image(self.c_width / 2, self.c_height / 2, image=img, anchor="c", tag="image")
-
-        self.update()
+        self._draw_to_canvas(self.im)
         # Ensuring that the splash screen cannot be called again
         self.boot = False
 

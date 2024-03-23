@@ -9,10 +9,10 @@ def exit_fullscreen(event):
 
 
 # Editable variables that determine how the player performs
-SHUFFLE = False
+SHUFFLE = True
 SHUFFLE_LEVEL = "folder"  # Either "folder" or "photo" and defines whether all folders are shuffles or all photos are
 # shuffled
-TIMER = 9  # seconds
+TIMER = 4  # seconds
 
 # Initialising the window
 Window = tk.Tk()  # Root window is created
