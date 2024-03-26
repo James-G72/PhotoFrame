@@ -149,33 +149,62 @@ class PhantomFrame(tk.Frame):
         """
         Binding certain keys to the top level widget such that a keyboard can interact with the frame object.
         """
-        self.top.bind("<space>", self._space_statemachine)
         self.top.bind("<Return>", self._return_statemachine)
+        self.top.bind("<Left>", self._left_statemachine)
+        self.top.bind("<Right>", self._right_statemachine)
+        self.top.bind("<Up>", self._up_statemachine)
+        self.top.bind("<Down>", self._down_statemachine)
 
-    def _return_statemachine(self, event):
+    def _left_statemachine(self, event):
         """
-        Controlling how the enter key interacts with the frame.
+        Controlling the response to pressing the left arrow on the keyboard. This is used for either navigating the
+        menu or for going to the previous picture
         """
         if self.in_menu:
             self.menu_state["active"]()
         self.top.mainloop()
 
-    def _space_statemachine(self, event):
+    def _right_statemachine(self, event):
+        """
+        Controlling the response to pressing the right arrow on the keyboard. This is used for either navigating the
+        menu or for going to the next picture.
+        """
+        if self.in_menu:
+            self.menu_state["active"]()
+        self.top.mainloop()
+
+    def _up_statemachine(self, event):
+        """
+        Controlling the response to pressing the up arrow on the keyboard. This is used for either navigating the
+        menu or no function.
+        """
+        if self.in_menu:
+            self.menu_state["active"]()
+        self.top.mainloop()
+
+    def _down_statemachine(self, event):
+        """
+        Controlling the response to pressing the down arrow on the keyboard. This is used for either navigating the
+        menu or no function.
+        """
+        if self.in_menu:
+            self.menu_state["active"]()
+        self.top.mainloop()
+
+    def _return_statemachine(self, event):
         """
         Controlling how the space bar interacts. Its action is dependent on the current state of the frame.
         """
         if not self.in_menu:
             if self.paused:
                 self.paused = False
-                # self._run_image()
                 self._redraw()
                 self._tksleep(self.sleep_remaining)
                 self._run_image()
             else:
                 self.paused = True
-                # self._redraw()
                 # Working out how long ago the previous _tksleep started
-                self.sleep_remaining = self.timer - (time.time() - self.sleep_time)
+                self.sleep_remaining = max(self.timer - (time.time() - self.sleep_time), 0)
                 self.sleep_time = None
                 self._draw_pause()
         else:
@@ -390,7 +419,7 @@ class PhantomFrame(tk.Frame):
     def _font_gen(self, size):
         """
         Generate an ImageFont object of a given font-size
-        size:
+        size: Font size to be created
         :return: ImageFont object
         """
         return ImageFont.truetype(self.font_path, size)
