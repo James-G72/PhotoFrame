@@ -162,6 +162,9 @@ class PhantomFrame(tk.Frame):
         """
         if self.in_menu:
             self.menu_state["active"]()
+        elif self.playing_photos and not self.paused:
+            self.pos += -1
+            self._run_image()
         self.top.mainloop()
 
     def _right_statemachine(self, event):
@@ -171,6 +174,9 @@ class PhantomFrame(tk.Frame):
         """
         if self.in_menu:
             self.menu_state["active"]()
+        elif self.playing_photos and not self.paused:
+            self.pos += 1
+            self._run_image()
         self.top.mainloop()
 
     def _up_statemachine(self, event):
@@ -200,6 +206,7 @@ class PhantomFrame(tk.Frame):
                 self.paused = False
                 self._redraw()
                 self._tksleep(self.sleep_remaining)
+                self.pos += 1
                 self._run_image()
             else:
                 self.paused = True
@@ -236,11 +243,12 @@ class PhantomFrame(tk.Frame):
             # Because of the way Python handles the memory we need to make a copy of the image so we don't edit the
             # original
             back_im = copy.copy(self.drawn_image)
+            back_im.putalpha(120)
             # Creating a blank image with an alpha of 120
-            pause_im = Image.new('RGBA', back_im.size, (255, 255, 255, 180))
-            draw_pause = ImageDraw.Draw(pause_im)
-            draw_pause.text((960, 540), "I I", (0, 0, 0), font=self._font_gen(200), anchor="mm")
-            back_im.putalpha(pause_im.getchannel('A').point(lambda x: (x*0.2)))
+            # pause_im = Image.new('RGBA', back_im.size, (255, 255, 255, 0))
+            draw_pause = ImageDraw.Draw(back_im)
+            draw_pause.text(tuple([x/2 for x in back_im.size]), "I I", (255, 255, 255), font=self._font_gen(200), anchor="mm")
+            # back_im.putalpha(pause_im.getchannel('A').point(lambda x: (x*0.2)))
             # Draw the image to the canvas but don't update the drawn image
             self._draw_to_canvas(back_im, set_drawn=False)
 
@@ -296,49 +304,58 @@ class PhantomFrame(tk.Frame):
 
     def _run_image(self):
         """
-        This function is self_calling and handles all the visuals. Each image is cycled through
+        This function identifies the next image that should be displayed and hands it to _draw_to_canvas
+        dir: str: Dictates the direction that the function should step through the pictures
         :return: None
         """
-        # Pulling out the image that we want to show next
-        self.image = self.imgs[self.current_folder][self.pos]
-        self.date_1 = self.date[self.current_folder][self.pos]
-
-        # The previous folder is tracked to know whether to show a splash image for that folder
-        if self.current_folder != self.prev_folder and self.shuffle_level != "photos":
-            # Ask the intro screen function to display the name of the folder and the range of dates within it
-            self.im_overlay = self._intro_screen(self.current_folder)
-            skip = False
-        else:
-            # Calling the resize function to ensure that the image is shown full screen
-            self.im = self._resized_image()
-            # Calling the overlay function to add the text over the image
-            self.im_overlay = self._overlay()
-            skip = True
-
-        self._draw_to_canvas(self.im_overlay)
-
-        # Preventing the counter from exceeding the number of images while iterating
-        if self.pos == len(self.imgs[self.current_folder]) - 1 and skip:
+        # Handling how the new self.pos value needs to be actioned.
+        if self.pos > len(self.imgs[self.current_folder]) - 1:
             self.pos = 0
             self.folder_pos += 1
             self.prev_folder = self.current_folder
             self.current_folder = self.folder_order[self.folder_pos]
             with open(self.base_path + "\\continue.txt", "w") as f:
                 f.write(self.current_folder)
-        elif skip:
-            self.pos += 1
+        elif self.pos == -1:
+            self.folder_pos += -1
+            # I can't think of how it would happen but we don't want the folder pos to become -1 and loop
+            if self.folder_pos == -1:
+                self.folder_pos = 0
+            self.current_folder = self.folder_order[self.folder_pos]
+            # This stops the intro screen for the previous folder from being played before the picture
             self.prev_folder = self.current_folder
-        else:
+            self.pos = len(self.imgs[self.current_folder]) - 1
+        elif self.pos != 0:
             self.prev_folder = self.current_folder
+
+        # The previous folder is tracked to know whether to show a splash image for that folder
+        if self.current_folder != self.prev_folder and self.shuffle_level != "photos":
+            # Ask the intro screen function to display the name of the folder and the range of dates within it
+            self._intro_screen(self.current_folder)
+            self._draw_to_canvas(self.image)
+            self._tksleep(self.timer)
+
+        # Pulling out the image that we want to show next
+        self.image = self.imgs[self.current_folder][self.pos]
+        self.date_1 = self.date[self.current_folder][self.pos]
+
+        # Calling the resize function to ensure that the image is shown full screen
+        self._resized_image()
+        # Calling the overlay function to add the text over the image
+        self._overlay()
+
+        self._draw_to_canvas(self.image)
 
         self._tksleep(self.timer)
+        self.pos += 1
         self._run_image()
-
 
     def _redraw(self):
         """
         If this function is called it implies that there has been a state-change that is not currently implemented in
-        the image self.img. The current image is therefore redrawn from scratch.
+        the image self.img. The current image is therefore redrawn from scratch. This function works in tandem with the
+        ability for the _draw_to_canvas function to update the image on the canvas but not update the self.drawn_image
+        variable.
         """
         self._draw_to_canvas(self.drawn_image)
 
@@ -382,8 +399,8 @@ class PhantomFrame(tk.Frame):
                 r_h = HEIGHT
                 r_w = math.floor(image_width / h_f)
 
-        # Return the image scaled by the factors calculated above
-        return self.img_copy.resize((int(r_w), int(r_h)))
+        # Set self.image to the copy with the resize applied
+        self.image = self.img_copy.resize((int(r_w), int(r_h)))
 
     def _overlay(self):
         """
@@ -391,7 +408,7 @@ class PhantomFrame(tk.Frame):
         :return: Image with the overlay on top
         """
         # Take a cropped section of the top left of the image
-        im_check = self.im.crop((0, 0, 100, 50))
+        im_check = self.image.crop((0, 0, 100, 50))
         # Count and get all those pixels in a list
         npixels = im_check.size[0] * im_check.size[1]
         cols = im_check.getcolors(npixels)
@@ -405,16 +422,13 @@ class PhantomFrame(tk.Frame):
         else:
             font_color = (0, 0, 0)
         # Create a draw image
-        draw = ImageDraw.Draw(self.im)
+        draw = ImageDraw.Draw(self.image)
         # Draw over the top for the folder name
         # TODO add some room to this so that it isn't right against the left hand side of the screen if the image is
         #  full width
         draw.text((1, 1), self.current_folder, font_color, font=self._font_gen(40))
         # Draw over the top for the date
         draw.text((1, 46), self.date_1, font_color, font=self._font_gen(25))
-
-        # Return the image with the overlay on top
-        return self.im
 
     def _font_gen(self, size):
         """
@@ -431,11 +445,11 @@ class PhantomFrame(tk.Frame):
         """
         # TODO make the font-size dependent on the width of the words
         self.image = Image.new(mode="RGBA", size=(1920, 1080))
-        self.im = self._resized_image()
-        draw = ImageDraw.Draw(self.im)
+        self._resized_image()
+        draw = ImageDraw.Draw(self.image)
         # Draw over the top for the folder name
-        centre_width = int(self.im.size[0] / 2)
-        centre_height = int(self.im.size[1] / 2)
+        centre_width = int(self.image.size[0] / 2)
+        centre_height = int(self.image.size[1] / 2)
         draw.text((centre_width, centre_height), self.folder_stats[name][0], (256, 256, 256), font=self._font_gen(100),
                   anchor="mm")
         # Draw over the top for the date
@@ -443,14 +457,12 @@ class PhantomFrame(tk.Frame):
         draw.text((centre_width, centre_height + 120), date_string, (256, 256, 256), font=self._font_gen(40),
                   anchor="mm")
 
-        return self.im
-
     def _splash(self):
         self.image = Image.new(mode="RGBA", size=(1920, 1080), color=(255, 255, 255))
-        self.im = self._resized_image()
-        draw = ImageDraw.Draw(self.im)
-        centre_width = int(self.im.size[0] / 2)
-        centre_height = int(self.im.size[1] / 2)
+        self._resized_image()
+        draw = ImageDraw.Draw(self.image)
+        centre_width = int(self.image.size[0] / 2)
+        centre_height = int(self.image.size[1] / 2)
         color = (0, 0, 0)
         draw.text((centre_width, centre_height - 200), "PhotoFrame", color, font=self._font_gen(220),
                   anchor="mm")
@@ -469,7 +481,7 @@ class PhantomFrame(tk.Frame):
         draw.text((centre_width + 350, centre_height + 60), str(self.image_num), color, font=self._font_gen(40),
                   anchor="mm")
 
-        self._draw_to_canvas(self.im)
+        self._draw_to_canvas(self.image)
         # Ensuring that the splash screen cannot be called again
         self.boot = False
 
