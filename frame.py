@@ -105,6 +105,7 @@ class PhantomFrame(tk.Frame):
         self.folder_pos = 0
         self.prev_folder = ""
         self.current_folder = self.folder_order[0]
+        self.drawn_image = None
 
         # Imagefont requires the font file to be imported
         self.font_path = self.base_path + "\\theboldfont.ttf"
@@ -220,19 +221,44 @@ class PhantomFrame(tk.Frame):
             self._run_image()
         self.top.mainloop()
 
-    def _draw_to_canvas(self, image, set_drawn=True):
+    def _black_background(self, im_in):
+        """
+        Edits the image to have black edges that fill the rest of the screen.
+        im_in: Image: Image to be given the all-black background
+        return: im_out: Image: Altered version of im_in
+        """
+        i_w, i_h = im_in.size
+        if i_w == 1920 and i_h == 1080:
+            return im_in
+        else:
+            background = Image.new(mode="RGBA", size=(1920, 1080), color=(0, 0, 0))
+            background.paste(im_in, (int((1920 - i_w) / 2), int((1080 - i_h) / 2)))
+        return background
+
+    def _draw_to_canvas(self, image, set_drawn=True, blend=True):
         """
         The function that draws a given image to the tkinter canvas.
         This has been packaged into a function as there are several steps to this process in order to store the PIL
         image that is being drawn as well as the ImageTK.PhotoImage object.
         """
+        if blend and self.drawn_image != None:
+            im1 = self._black_background(self.drawn_image)
+            im2 = self._black_background(image)
+
+            stack = []
+            alpha = 0.05
+            for x in range(0, 20):
+                stack.append(ImageTk.PhotoImage(Image.blend(im1, im2, alpha*x)))
+            for slide in stack:
+                self.canvas.create_image(self.c_width / 2, self.c_height / 2, image=slide, anchor="c", tag="image")
+                self.update()
         # This has to be a self. variable or else upon exiting the _draw_pause function the canvas loses the
         # reference to the image and goes blank
         self.photo_image = ImageTk.PhotoImage(image)
         self.canvas.delete("image")
         # Pasting the new image onto the canvas with the tag "image" so it can easily be removed
         self.canvas.create_image(self.c_width / 2, self.c_height / 2, image=self.photo_image, anchor="c", tag="image")
-        self.update()
+
         # If it has been requested to save the PIL image
         if set_drawn:
             self.drawn_image = image
@@ -308,6 +334,7 @@ class PhantomFrame(tk.Frame):
         dir: str: Dictates the direction that the function should step through the pictures
         :return: None
         """
+        blend = True
         # Handling how the new self.pos value needs to be actioned.
         if self.pos > len(self.imgs[self.current_folder]) - 1:
             self.pos = 0
@@ -332,7 +359,9 @@ class PhantomFrame(tk.Frame):
         if self.current_folder != self.prev_folder and self.shuffle_level != "photos":
             # Ask the intro screen function to display the name of the folder and the range of dates within it
             self._intro_screen(self.current_folder)
-            self._draw_to_canvas(self.image)
+            # The blend function handles text really badly. Until I work out why its best to just not blend the text slides
+            self._draw_to_canvas(self.image, blend=False)
+            blend = False
             self._tksleep(self.timer)
 
         # Pulling out the image that we want to show next
@@ -344,7 +373,7 @@ class PhantomFrame(tk.Frame):
         # Calling the overlay function to add the text over the image
         self._overlay()
 
-        self._draw_to_canvas(self.image)
+        self._draw_to_canvas(self.image, blend=blend)
 
         self._tksleep(self.timer)
         self.pos += 1
@@ -424,11 +453,9 @@ class PhantomFrame(tk.Frame):
         # Create a draw image
         draw = ImageDraw.Draw(self.image)
         # Draw over the top for the folder name
-        # TODO add some room to this so that it isn't right against the left hand side of the screen if the image is
-        #  full width
-        draw.text((1, 1), self.current_folder, font_color, font=self._font_gen(40))
+        draw.text((25, 1), self.current_folder, font_color, font=self._font_gen(40))
         # Draw over the top for the date
-        draw.text((1, 46), self.date_1, font_color, font=self._font_gen(25))
+        draw.text((25, 46), self.date_1, font_color, font=self._font_gen(25))
 
     def _font_gen(self, size):
         """
@@ -464,7 +491,7 @@ class PhantomFrame(tk.Frame):
         centre_width = int(self.image.size[0] / 2)
         centre_height = int(self.image.size[1] / 2)
         color = (0, 0, 0)
-        draw.text((centre_width, centre_height - 200), "PhotoFrame", color, font=self._font_gen(220),
+        draw.text((centre_width, centre_height - 160), "PhotoFrame", color, font=self._font_gen(220),
                   anchor="mm")
         draw.text((centre_width + 500, centre_height - 90), "by James Gower", color, font=self._font_gen(40),
                   anchor="mm")
