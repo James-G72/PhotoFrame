@@ -133,7 +133,9 @@ class PhantomFrame(tk.Frame):
         """
         self.sleep_time = time.time()
         ms = int(t * 1000)
-        root = tk._get_default_root()
+        # The method i originally used had a method here for tk._get_default_root()
+        # This didn't work on all machines so I have replaced this with self.tp instead
+        root = self.top
         var = tk.IntVar(root)
         root.after(ms, lambda: var.set(1))
         root.wait_variable(var)
